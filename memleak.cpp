@@ -75,6 +75,8 @@ memory_insert(
     }
 
     // Link MemList to Head of MemHeader
+    if (pMemHeader->next != NULL)
+        pMemHeader->next->prev = pMemList;
     pMemList->prev = (MemList_t*)pMemHeader;
     pMemList->next = pMemHeader->next;
     pMemHeader->next = pMemList;
@@ -89,6 +91,7 @@ void *memory_delete(MemHeader_t *pMemHeader, void *ptr)
     MemList_t *pMemList = (MemList_t*)ptr - 1;
 
     // Delete MemList from MemList list
+    
     pMemList->prev->next = pMemList->next;
     if (pMemList->next != NULL)
         pMemList->next->prev = pMemList->prev;
@@ -112,10 +115,13 @@ void memory_scan(MemHeader_t *pMemHeader)
         cout << "Memory Leak in [ File:" 
              << pCur->filename << ", Line:" 
              << pCur->line << ", Size:" 
-             << pCur->size << "]" 
+             << pCur->size - sizeof(MemList_t) << "]"
+             << " cur:" << pCur
              << " prev:" << pCur->prev 
              << " next:" << pCur->next << endl;
     }
+
+    cout << endl;
 }
 
 /*
@@ -124,8 +130,9 @@ void memory_scan(MemHeader_t *pMemHeader)
 #ifdef OLD_IMPL
 void * operator new(size_t size)
 {
-    cout << "Global override new (" << size << ")" <<endl;
-    return (::new char[size]);
+    void *ptr = (::new char[size]);
+    cout << "Global override new (" << ptr << "," << size << ")" <<endl;
+    return ptr;
 }
 #else
 void * operator new(size_t size, char* file, int line)
@@ -134,7 +141,7 @@ void * operator new(size_t size, char* file, int line)
     size += sizeof(MemList_t);
     pMemList = (MemList_t*)(::new char[size]);
     cout << "Global override new (" 
-         << (char*)pMemList << "," << size << "," << file << "," << line 
+         << pMemList << "," << size << "," << file << "," << line 
          << ")" << endl;
 
     return memory_insert(&gGlobalMemory, pMemList, size, file, line);
@@ -147,17 +154,21 @@ void * operator new(size_t size, char* file, int line)
 #ifdef OLD_IMPL
 void * operator new(size_t size, int flag)
 {
-    cout << "Override operator new (" << size << "," << flag << ")" << endl;
-    return (::operator new(size));
+    void *ptr = (::operator new(size));
+    cout << "Override operator new (" 
+         << ptr << "," << size << "," << flag 
+         << ")" << endl;
+    return ptr;
 }
 #else
 void * operator new(size_t size, int flag, char* file, int line)
 {
+    void *ptr = (::operator new(size, file, line));
     cout << "Override operator new ("
-         << size << "," << flag << "," << file << "," << line 
+         << ptr << "," << size << "," << flag << "," << file << "," << line 
          << ")" << endl;
 
-    return (::operator new(size, file, line));
+    return ptr;
 }
 #endif
 
@@ -166,9 +177,10 @@ void * operator new(size_t size, int flag, char* file, int line)
   首先自己定义operator new函数，来替代编译器全局默认的operator函数
 */
 #ifdef OLD_IMPL
-void * operator new[](size_t size){
-    cout << "Global override new " << "[" << size << "]" << endl;
+void * operator new[](size_t size)
+{
     void * ptr = malloc(size); //自己调用malloc来分配内存
+    cout << "Global override new " << "[" << ptr << "," << size << "]" << endl;
     return ptr;
 }
 #else
@@ -177,7 +189,7 @@ void * operator new[](size_t size, char* file, int line){
     size += sizeof(MemList_t);
     pMemList = (MemList_t*)(::new char[size]);
     cout << "Global override new [" 
-         << (char*)pMemList << "," << size << "," << file << "," << line 
+         << pMemList << "," << size << "," << file << "," << line 
          << "]" << endl;
 
     return memory_insert(&gGlobalMemory, pMemList, size, file, line);
@@ -190,26 +202,28 @@ void * operator new[](size_t size, char* file, int line){
 #ifdef OLD_IMPL
 void * operator new[](size_t size, int flag)
 {
-    cout << "Override operator new [" << size << "," << flag << "]" << endl;
+    void *ptr = (::operator new(size));
+    cout << "Override operator new [" << ptr << "," << size << "," << flag << "]" << endl;
 
-    return (::operator new(size));
+    return ptr;
 }
 #else
 void * operator new[](size_t size, int flag, char* file, int line)
 {
+    void *ptr = (::operator new(size, file, line));
     cout << "Override operator new ["
-         << size << "," << flag << "," << file << "," << line 
+         << ptr << "," << size << "," << flag << "," << file << "," << line 
          <<"]"<<endl;
-    return (::operator new(size, file, line));
+    return ptr;
 }
 #endif
 
 //覆盖掉全局的operator delete 函数
 void operator delete(void *ptr){
-    cout <<"Global override delete: "<< ptr << endl;
 #ifndef OLD_IMPL
     ptr = memory_delete(&gGlobalMemory, ptr);
 #endif
+    cout <<"Global override delete: "<< ptr << endl;
     free(ptr);
     ptr = NULL;
 }
@@ -227,10 +241,10 @@ void operator delete(void *ptr, char* file, int line){
   调用与new 函数对应的 delete来释放，稍后会有对应的列子来介绍，在这个例子中该函数暂时没用
 */
 void operator delete(void *ptr, int flag){
-    cout << "Override operator delete (" << ptr << "," << flag << ")" << endl;
 #ifndef OLD_IMPL
     ptr = memory_delete(&gGlobalMemory, ptr);
 #endif
+    cout << "Override operator delete (" << ptr << "," << flag << ")" << endl;
     ::operator delete(ptr);
     ptr = NULL;
 }
@@ -247,10 +261,10 @@ void operator delete(void *ptr, int flag, char* file, int line){
 
 //覆盖掉全局的operator delete 函数
 void operator delete[](void *ptr){
-    cout<<"Global override delete:" << ptr << endl;
 #ifndef OLD_IMPL
     ptr = memory_delete(&gGlobalMemory, ptr);
 #endif
+    cout<<"Global override delete:" << ptr << endl;
     free(ptr);
     ptr = NULL;
 }
@@ -298,27 +312,88 @@ public:
 
 private:
     int a_;
+    int b_;
 };
 
-int main(){
-    int * ptr1 = new int(10);
-
+void test_delete_first()
+{
+    int * ptr1 = new int(2);
     int * ptr2 = new int[10];
-    test * ptr3 = new test(10);
-
+    test * ptr3 = new test(0);
     /*
       delete ptr; 调用的就是 void operator delete(void * ptr); 而与new 匹配的delete 不是自己调用的
       ，而是在new申请,成功却在构造函数时候出错，new operator自己根据operator new 来寻找 
       对应的operator delete 来调用，稍后介绍。
     */
     delete ptr1;
-    delete [] ptr2;
-    if (ptr3 == NULL)
-        return -1;
-    //delete ptr3;
-    cout<<"*********************"<<endl;
+    cout<<"**********case test_delete_first***********"<<endl;
 
     memory_scan(&gGlobalMemory);
+    delete ptr2;
+    delete ptr3;
+}
+
+void test_delete_median()
+{
+    int * ptr1 = new int(2);
+    int * ptr2 = new int[10];
+    test * ptr3 = new test(0);
+    /*
+      delete ptr; 调用的就是 void operator delete(void * ptr); 而与new 匹配的delete 不是自己调用的
+      ，而是在new申请,成功却在构造函数时候出错，new operator自己根据operator new 来寻找 
+      对应的operator delete 来调用，稍后介绍。
+    */
+    delete [] ptr2;
+    cout<<"**********case test_delete_median***********"<<endl;
+
+    memory_scan(&gGlobalMemory);    
+    delete ptr1;
+    delete ptr3;
+}
+
+void test_delete_end()
+{
+    int * ptr1 = new int(2);
+    int * ptr2 = new int[10];
+    test * ptr3 = new test(0);
+    /*
+      delete ptr; 调用的就是 void operator delete(void * ptr); 而与new 匹配的delete 不是自己调用的
+      ，而是在new申请,成功却在构造函数时候出错，new operator自己根据operator new 来寻找 
+      对应的operator delete 来调用，稍后介绍。
+    */
+    delete ptr3;
+    cout<<"**********case test_delete_end***********"<<endl;
+
+    memory_scan(&gGlobalMemory);    
+    delete ptr1;
+    delete ptr2;
+}
+
+void test_delete_all()
+{
+    int * ptr1 = new int(2);
+    int * ptr2 = new int[10];
+    test * ptr3 = new test(0);
+    /*
+      delete ptr; 调用的就是 void operator delete(void * ptr); 而与new 匹配的delete 不是自己调用的
+      ，而是在new申请,成功却在构造函数时候出错，new operator自己根据operator new 来寻找 
+      对应的operator delete 来调用，稍后介绍。
+    */
+    delete ptr1;
+    delete ptr2;
+    delete ptr3;
+    cout<<"**********case test_delete_all***********"<<endl;
+
+    memory_scan(&gGlobalMemory);    
+}
+
+
+int main()
+{
+    test_delete_first();
+    test_delete_median();
+    test_delete_end();
+    test_delete_all();
 
     return 0;
 }
