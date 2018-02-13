@@ -6,7 +6,109 @@
 
 using namespace std;
 
+#define MEM_LINK_FILE_NAME_LEN 9
+typedef unsigned short int uint2;
+typedef unsigned int       uint4;
+
+// the first two attribute must be prev and next, it's as same as MemHeader
+typedef struct MemList
+{
+    struct MemList *prev;       // point to previous memory block
+    struct MemList *next;       // point to next memory block
+    uint4  size;                // the size of this memory block, include this header
+    uint2  line;                // the line of allocate
+    char   filename[MEM_LINK_FILE_NAME_LEN]; // the tail 9 bytes file name of allocate
+    char   filetype;                         // the file type, it's .c or .h
+}MemList_t;
+
+// the first two attribute must be prev and next, it's as same as MemList
+typedef struct MemHeader
+{
+    struct MemList *prev;       // point to previous memory block, must be NULL
+    struct MemList *next;       // point to next memory block
+    size_t          lstLen;     // total memory is allocated by user
+    size_t          total;      // total memory is allocated, include managing memory 
+}MemHeader_t;
+
+MemHeader_t gGlobalMemory = {NULL, NULL, NULL, 0};
+
 //#define OLD_IMPL
+
+void *
+memory_insert(
+        MemHeader_t *pMemHeader, 
+        MemList_t *pMemList, 
+        size_t size, char *file, int line)
+{
+    pMemList->line = line;
+    pMemList->size = size;
+    char *fileEnd = strstr(file, ".");
+    if (fileEnd == NULL)
+    {
+        cout << "Don't supported file without type:" <<file<<endl;
+        return NULL;
+    }
+
+    pMemList->filetype = fileEnd[1];
+    switch(fileEnd[1]) 
+    {
+    case 'H':
+    case 'h':
+        cout << "header file call a new operator!!!!!" << endl;
+    case 'C':
+    case 'c':
+        {
+            int   fileNameLen = fileEnd - file;
+            char *fileNameStart = fileEnd - MEM_LINK_FILE_NAME_LEN;
+            // skip the .c, .C, .H, .h
+            if (fileNameLen > MEM_LINK_FILE_NAME_LEN)
+                fileNameLen = MEM_LINK_FILE_NAME_LEN;
+            if (fileNameStart < file)
+                fileNameStart = file;
+                
+            memcpy(pMemList->filename, fileNameStart, fileNameLen);
+            break;
+        }
+
+    default:
+        cout << "Don't supported file type:" <<file<<endl;
+    }
+
+    // Link MemList to Head of MemHeader
+    pMemList->prev = (MemList_t*)pMemHeader;
+    pMemList->next = pMemHeader->next;
+    pMemHeader->next = pMemList;
+    pMemHeader->total += size;
+    pMemHeader->lstLen++;
+
+    return (pMemList + 1);
+}
+
+void *memory_delete(MemHeader_t *pMemHeader, void *ptr)
+{
+    MemList_t *pMemList = (MemList_t*)ptr - 1;
+
+    // Delete MemList from MemList list
+    pMemList->prev->next = pMemList->next;
+    pMemList->next->prev = pMemList->prev;
+    pMemHeader->total -= pMemList->size;
+    pMemHeader->lstLen--;
+    
+    return ((void*)pMemList);
+}
+
+void memory_scan(MemHeader_t *pMemHeader)
+{
+    MemList_t *pCur;
+
+    for (pCur = pMemHeader->next; pCur != NULL; pCur = pCur->next) 
+    {
+        cout << "Memory Leak in [ File:" 
+             << pCur->filename << ", Line:" 
+             << pCur->line << ", Size:" 
+             << pCur->size << "]" << endl;
+    }
+}
 
 /*
   首先自己定义operator new函数，来替代编译器全局默认的operator函数
@@ -23,9 +125,10 @@ void * operator new(size_t size, char* file, int line)
 {
     cout<<"Global override new ("<<size<<","<<file<<","<<line<<")"<<endl;
 #endif
-    // void * ptr = malloc(size); //自己调用malloc来分配内存
-    // return ptr;
-    return (::new char[size]);
+    size += sizeof(MemList_t);
+    MemList_t *pMemList = (MemList_t*)(::new char[size]);
+
+    return memory_insert(&gGlobalMemory, pMemList, size, file, line);
     //下面这句话会引起递归的调用，重载operator new之后，::operator new就等于调用自己
     //return ::operator new(size);
 }
@@ -41,6 +144,7 @@ void * operator new(size_t size, int flag)
 void * operator new(size_t size, int flag, char* file, int line)
 {
     cout<<"Override operator new ("<<size<<","<<flag<<","<<file<<","<<line<<")"<<endl;
+
     return (::operator new(size, file, line));
 }
 #endif
@@ -57,9 +161,12 @@ void * operator new[](size_t size){
 }
 #else
 void * operator new[](size_t size, char* file, int line){
-    cout<<"Global override new "<<"["<<file<<","<<line<<"]"<<endl;
+    cout<<"Global override new ["<<size<<","<<file<<","<<line<<"]"<<endl;
 
-    return (::new char[size] );
+    size += sizeof(MemList_t);
+    MemList_t *pMemList = (MemList_t*)(::new char[size]);
+
+    return memory_insert(&gGlobalMemory, pMemList, size, file, line);
     //下面这句话会引起递归的调用，重载operator new之后，::operator new就等于调用自己
     //return ::operator new(size);
 }
@@ -70,6 +177,7 @@ void * operator new[](size_t size, char* file, int line){
 void * operator new[](size_t size, int flag)
 {
     cout<<"Override operator new ["<<size<<","<<flag<<"]"<<endl;
+
     return (::operator new(size));
 }
 #else
@@ -86,6 +194,7 @@ void operator delete(void *ptr){
     cout<<"Global override delete"<<endl;
 #else
     cout<<"Global override delete ("<<filepath<<","<<linenum<<")"<<endl;
+    ptr = memory_delete(&gGlobalMemory, ptr);
 #endif
     free(ptr);
     ptr = NULL;
@@ -108,6 +217,7 @@ void operator delete(void *ptr, int flag){
     cout<<"Override operator delete ("<<flag<<")"<<endl;
 #else
     cout<<"Override operator delete ("<<flag<<","<<filepath<<","<<linenum<<")"<<endl;
+    ptr = memory_delete(&gGlobalMemory, ptr);
 #endif
     ::operator delete(ptr);
     ptr = NULL;
@@ -126,6 +236,7 @@ void operator delete[](void *ptr){
     cout<<"Global override delete"<<endl;
 #else
     cout<<"Global override delete ["<<ptr<<","<<filepath<<","<<linenum<<"]"<<endl;
+    ptr = memory_delete(&gGlobalMemory, ptr);
 #endif
     free(ptr);
     ptr = NULL;
@@ -165,7 +276,6 @@ void operator delete[](void *ptr, int flag, char* file, int line){
 
 #ifndef OLD_IMPL
 #define new new((char*)__FILE__, __LINE__)
-#define delete filepath=(char*)__FILE__,linenum=__LINE__, delete
 #endif
 
 class test
@@ -179,6 +289,7 @@ private:
 
 int main(){
     int * ptr1 = new int(10);
+
     int * ptr2 = new int[10];
     test * ptr3 = new test(10);
 
@@ -189,8 +300,15 @@ int main(){
     */
     delete ptr1;
     delete [] ptr2;
-    delete ptr3;
+    if (ptr3 == NULL)
+        return -1;
+    //delete ptr3;
     cout<<"*********************"<<endl;
+
+    MemList_t *pCur;
+    for (pCur = gGlobalMemory.next; pCur != NULL; pCur = pCur->next) {
+        cout << "MemList [" << pCur->filename << "," << pCur->line << "]" << endl;
+    }
 
     return 0;
 }
