@@ -45,7 +45,7 @@ memory_insert(
     char *fileEnd = strstr(file, ".");
     if (fileEnd == NULL)
     {
-        cout << "Don't supported file without type:" <<file<<endl;
+        cout << "ERROR: Don't supported file without type:" << file << endl;
         return NULL;
     }
 
@@ -54,7 +54,7 @@ memory_insert(
     {
     case 'H':
     case 'h':
-        cout << "header file call a new operator!!!!!" << endl;
+        cout << "WARNING: header file call a new operator!!!!!" << endl;
     case 'C':
     case 'c':
         {
@@ -71,7 +71,7 @@ memory_insert(
         }
 
     default:
-        cout << "Don't supported file type:" <<file<<endl;
+        cout << "ERROR: Don't supported file type:" << file << endl;
     }
 
     // Link MemList to Head of MemHeader
@@ -90,7 +90,8 @@ void *memory_delete(MemHeader_t *pMemHeader, void *ptr)
 
     // Delete MemList from MemList list
     pMemList->prev->next = pMemList->next;
-    pMemList->next->prev = pMemList->prev;
+    if (pMemList->next != NULL)
+        pMemList->next->prev = pMemList->prev;
     pMemHeader->total -= pMemList->size;
     pMemHeader->lstLen--;
     
@@ -101,12 +102,19 @@ void memory_scan(MemHeader_t *pMemHeader)
 {
     MemList_t *pCur;
 
+    cout << "Memory Header:" << pMemHeader 
+         << " prev:" << pMemHeader->prev 
+         << " next:" << pMemHeader->next 
+         << " lstLen:" << pMemHeader->lstLen
+         << " total:" << pMemHeader->total << endl;
     for (pCur = pMemHeader->next; pCur != NULL; pCur = pCur->next) 
     {
         cout << "Memory Leak in [ File:" 
              << pCur->filename << ", Line:" 
              << pCur->line << ", Size:" 
-             << pCur->size << "]" << endl;
+             << pCur->size << "]" 
+             << " prev:" << pCur->prev 
+             << " next:" << pCur->next << endl;
     }
 }
 
@@ -116,34 +124,38 @@ void memory_scan(MemHeader_t *pMemHeader)
 #ifdef OLD_IMPL
 void * operator new(size_t size)
 {
-    cout<<"Global override new ("<<size<<")"<<endl;
+    cout << "Global override new (" << size << ")" <<endl;
+    return (::new char[size]);
+}
 #else
-char *filepath = NULL;
-int linenum = 0;
-
 void * operator new(size_t size, char* file, int line)
 {
-    cout<<"Global override new ("<<size<<","<<file<<","<<line<<")"<<endl;
-#endif
+    MemList_t *pMemList = NULL;
     size += sizeof(MemList_t);
-    MemList_t *pMemList = (MemList_t*)(::new char[size]);
+    pMemList = (MemList_t*)(::new char[size]);
+    cout << "Global override new (" 
+         << (char*)pMemList << "," << size << "," << file << "," << line 
+         << ")" << endl;
 
     return memory_insert(&gGlobalMemory, pMemList, size, file, line);
     //下面这句话会引起递归的调用，重载operator new之后，::operator new就等于调用自己
     //return ::operator new(size);
 }
+#endif
 
 //重载版本的operator new，该函数默认的是调用 上面的operator new函数
 #ifdef OLD_IMPL
 void * operator new(size_t size, int flag)
 {
-    cout<<"Override operator new ("<<size<<","<<flag<<")"<<endl;
+    cout << "Override operator new (" << size << "," << flag << ")" << endl;
     return (::operator new(size));
 }
 #else
 void * operator new(size_t size, int flag, char* file, int line)
 {
-    cout<<"Override operator new ("<<size<<","<<flag<<","<<file<<","<<line<<")"<<endl;
+    cout << "Override operator new ("
+         << size << "," << flag << "," << file << "," << line 
+         << ")" << endl;
 
     return (::operator new(size, file, line));
 }
@@ -155,16 +167,18 @@ void * operator new(size_t size, int flag, char* file, int line)
 */
 #ifdef OLD_IMPL
 void * operator new[](size_t size){
-    cout<<"Global override new "<<"["<<size<<"]"<<endl;
+    cout << "Global override new " << "[" << size << "]" << endl;
     void * ptr = malloc(size); //自己调用malloc来分配内存
     return ptr;
 }
 #else
 void * operator new[](size_t size, char* file, int line){
-    cout<<"Global override new ["<<size<<","<<file<<","<<line<<"]"<<endl;
-
+    MemList_t *pMemList = NULL;
     size += sizeof(MemList_t);
-    MemList_t *pMemList = (MemList_t*)(::new char[size]);
+    pMemList = (MemList_t*)(::new char[size]);
+    cout << "Global override new [" 
+         << (char*)pMemList << "," << size << "," << file << "," << line 
+         << "]" << endl;
 
     return memory_insert(&gGlobalMemory, pMemList, size, file, line);
     //下面这句话会引起递归的调用，重载operator new之后，::operator new就等于调用自己
@@ -176,24 +190,24 @@ void * operator new[](size_t size, char* file, int line){
 #ifdef OLD_IMPL
 void * operator new[](size_t size, int flag)
 {
-    cout<<"Override operator new ["<<size<<","<<flag<<"]"<<endl;
+    cout << "Override operator new [" << size << "," << flag << "]" << endl;
 
     return (::operator new(size));
 }
 #else
 void * operator new[](size_t size, int flag, char* file, int line)
 {
-    cout<<"Override operator new ["<<size<<","<<flag<<","<<file<<","<<line<<"]"<<endl;
+    cout << "Override operator new ["
+         << size << "," << flag << "," << file << "," << line 
+         <<"]"<<endl;
     return (::operator new(size, file, line));
 }
 #endif
 
 //覆盖掉全局的operator delete 函数
 void operator delete(void *ptr){
-#ifdef OLD_IMPL
-    cout<<"Global override delete"<<endl;
-#else
-    cout<<"Global override delete ("<<filepath<<","<<linenum<<")"<<endl;
+    cout <<"Global override delete: "<< ptr << endl;
+#ifndef OLD_IMPL
     ptr = memory_delete(&gGlobalMemory, ptr);
 #endif
     free(ptr);
@@ -213,18 +227,19 @@ void operator delete(void *ptr, char* file, int line){
   调用与new 函数对应的 delete来释放，稍后会有对应的列子来介绍，在这个例子中该函数暂时没用
 */
 void operator delete(void *ptr, int flag){
-#ifdef OLD_IMPL
-    cout<<"Override operator delete ("<<flag<<")"<<endl;
-#else
-    cout<<"Override operator delete ("<<flag<<","<<filepath<<","<<linenum<<")"<<endl;
+    cout << "Override operator delete (" << ptr << "," << flag << ")" << endl;
+#ifndef OLD_IMPL
     ptr = memory_delete(&gGlobalMemory, ptr);
 #endif
     ::operator delete(ptr);
     ptr = NULL;
 }
+
 #ifndef OLD_IMPL
 void operator delete(void *ptr, int flag, char* file, int line){
-    cout<<"Override operator delete ("<<flag<<","<<file<<","<<line<<")"<<endl;
+    cout << "Override operator delete ("
+         << ptr << "," << flag << "," << file << "," << line 
+         << ")" << endl;
     ::operator delete(ptr, file, line);
     ptr = NULL;
 }
@@ -232,10 +247,8 @@ void operator delete(void *ptr, int flag, char* file, int line){
 
 //覆盖掉全局的operator delete 函数
 void operator delete[](void *ptr){
-#ifdef OLD_IMPL
-    cout<<"Global override delete"<<endl;
-#else
-    cout<<"Global override delete ["<<ptr<<","<<filepath<<","<<linenum<<"]"<<endl;
+    cout<<"Global override delete:" << ptr << endl;
+#ifndef OLD_IMPL
     ptr = memory_delete(&gGlobalMemory, ptr);
 #endif
     free(ptr);
@@ -244,7 +257,9 @@ void operator delete[](void *ptr){
 
 #ifndef OLD_IMPL
 void operator delete[](void *ptr, char* file, int line){
-    cout<<"Global override delete ["<<ptr<<","<<file<<","<<line<<"]"<<endl;
+    cout << "Global override delete ["
+         << ptr << "," << file << "," << line 
+         << "]" << endl;
     ::operator delete [] (ptr, file, line); 
     ptr = NULL;
 }
@@ -256,18 +271,16 @@ void operator delete[](void *ptr, char* file, int line){
   调用与new 函数对应的 delete来释放，稍后会有对应的列子来介绍，在这个例子中该函数暂时没用
 */
 void operator delete[](void *ptr, int flag){
-#ifdef OLD_IMPL
-    cout<<"Override operator delete ["<<flag<<"]"<<endl;
-#else
-    cout<<"Override operator delete ["<<flag<<","<<filepath<<","<<linenum<<"]"<<endl;
-#endif
+    cout << "Override operator delete [" << flag << "]" << endl;
     ::operator delete[](ptr);
     ptr = NULL;
 }
 
 #ifndef OLD_IMPL
 void operator delete[](void *ptr, int flag, char* file, int line){
-    cout<<"Override operator delete ["<<flag<<","<<file<<","<<line<<"]"<<endl;
+    cout << "Override operator delete ["
+         << flag << "," << file << "," << line 
+         <<"]"<<endl;
     ::operator delete[](ptr, file, line);
     ptr = NULL;
 }
@@ -305,10 +318,7 @@ int main(){
     //delete ptr3;
     cout<<"*********************"<<endl;
 
-    MemList_t *pCur;
-    for (pCur = gGlobalMemory.next; pCur != NULL; pCur = pCur->next) {
-        cout << "MemList [" << pCur->filename << "," << pCur->line << "]" << endl;
-    }
+    memory_scan(&gGlobalMemory);
 
     return 0;
 }
