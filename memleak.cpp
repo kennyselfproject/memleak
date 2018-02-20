@@ -30,9 +30,7 @@ typedef struct MemHeader
     size_t          total;      // total memory is allocated, include managing memory 
 }MemHeader_t;
 
-MemHeader_t gGlobalMemory = {NULL, NULL, NULL, 0};
-
-//#define OLD_IMPL
+MemHeader_t gGlobalMemory = {NULL, NULL, 0, 0};
 
 void *
 memory_insert(
@@ -127,14 +125,6 @@ void memory_scan(MemHeader_t *pMemHeader)
 /*
   首先自己定义operator new函数，来替代编译器全局默认的operator函数
 */
-#ifdef OLD_IMPL
-void * operator new(size_t size)
-{
-    void *ptr = (::new char[size]);
-    cout << "Global override new (" << ptr << "," << size << ")" <<endl;
-    return ptr;
-}
-#else
 void * operator new(size_t size, char* file, int line)
 {
     MemList_t *pMemList = NULL;
@@ -148,42 +138,10 @@ void * operator new(size_t size, char* file, int line)
     //下面这句话会引起递归的调用，重载operator new之后，::operator new就等于调用自己
     //return ::operator new(size);
 }
-#endif
-
-//重载版本的operator new，该函数默认的是调用 上面的operator new函数
-#ifdef OLD_IMPL
-void * operator new(size_t size, int flag)
-{
-    void *ptr = (::operator new(size));
-    cout << "Override operator new (" 
-         << ptr << "," << size << "," << flag 
-         << ")" << endl;
-    return ptr;
-}
-#else
-void * operator new(size_t size, int flag, char* file, int line)
-{
-    void *ptr = (::operator new(size, file, line));
-    cout << "Override operator new ("
-         << ptr << "," << size << "," << flag << "," << file << "," << line 
-         << ")" << endl;
-
-    return ptr;
-}
-#endif
-
 
 /*
   首先自己定义operator new函数，来替代编译器全局默认的operator函数
 */
-#ifdef OLD_IMPL
-void * operator new[](size_t size)
-{
-    void * ptr = malloc(size); //自己调用malloc来分配内存
-    cout << "Global override new " << "[" << ptr << "," << size << "]" << endl;
-    return ptr;
-}
-#else
 void * operator new[](size_t size, char* file, int line){
     MemList_t *pMemList = NULL;
     size += sizeof(MemList_t);
@@ -196,80 +154,29 @@ void * operator new[](size_t size, char* file, int line){
     //下面这句话会引起递归的调用，重载operator new之后，::operator new就等于调用自己
     //return ::operator new(size);
 }
-#endif
-
-//重载版本的operator new，该函数默认的是调用 上面的operator new函数
-#ifdef OLD_IMPL
-void * operator new[](size_t size, int flag)
-{
-    void *ptr = (::operator new(size));
-    cout << "Override operator new [" << ptr << "," << size << "," << flag << "]" << endl;
-
-    return ptr;
-}
-#else
-void * operator new[](size_t size, int flag, char* file, int line)
-{
-    void *ptr = (::operator new(size, file, line));
-    cout << "Override operator new ["
-         << ptr << "," << size << "," << flag << "," << file << "," << line 
-         <<"]"<<endl;
-    return ptr;
-}
-#endif
 
 //覆盖掉全局的operator delete 函数
 void operator delete(void *ptr){
-#ifndef OLD_IMPL
     ptr = memory_delete(&gGlobalMemory, ptr);
-#endif
     cout <<"Global override delete: "<< ptr << endl;
     free(ptr);
     ptr = NULL;
 }
-#ifndef OLD_IMPL
+
 void operator delete(void *ptr, char* file, int line){
     cout<<"Global override delete ("<<ptr<<","<<file<<","<<line<<")"<<endl;
     ::operator delete(ptr);
     ptr = NULL;
 }
-#endif
-
-
-/*
-  重载版本的operator delete，该函数主要的用途是在构造函数执行不成功的时候，
-  调用与new 函数对应的 delete来释放，稍后会有对应的列子来介绍，在这个例子中该函数暂时没用
-*/
-void operator delete(void *ptr, int flag){
-#ifndef OLD_IMPL
-    ptr = memory_delete(&gGlobalMemory, ptr);
-#endif
-    cout << "Override operator delete (" << ptr << "," << flag << ")" << endl;
-    ::operator delete(ptr);
-    ptr = NULL;
-}
-
-#ifndef OLD_IMPL
-void operator delete(void *ptr, int flag, char* file, int line){
-    cout << "Override operator delete ("
-         << ptr << "," << flag << "," << file << "," << line 
-         << ")" << endl;
-    ::operator delete(ptr, file, line);
-    ptr = NULL;
-}
-#endif
 
 //覆盖掉全局的operator delete 函数
 void operator delete[](void *ptr){
-#ifndef OLD_IMPL
     ptr = memory_delete(&gGlobalMemory, ptr);
-#endif
     cout<<"Global override delete:" << ptr << endl;
     free(ptr);
     ptr = NULL;
 }
 
-#ifndef OLD_IMPL
 void operator delete[](void *ptr, char* file, int line){
     cout << "Global override delete ["
          << ptr << "," << file << "," << line 
@@ -277,33 +184,9 @@ void operator delete[](void *ptr, char* file, int line){
     ::operator delete [] (ptr, file, line); 
     ptr = NULL;
 }
-#endif
 
 
-/*
-  重载版本的operator delete，该函数主要的用途是在构造函数执行不成功的时候，
-  调用与new 函数对应的 delete来释放，稍后会有对应的列子来介绍，在这个例子中该函数暂时没用
-*/
-void operator delete[](void *ptr, int flag){
-    cout << "Override operator delete [" << flag << "]" << endl;
-    ::operator delete[](ptr);
-    ptr = NULL;
-}
-
-#ifndef OLD_IMPL
-void operator delete[](void *ptr, int flag, char* file, int line){
-    cout << "Override operator delete ["
-         << flag << "," << file << "," << line 
-         <<"]"<<endl;
-    ::operator delete[](ptr, file, line);
-    ptr = NULL;
-}
-#endif
-
-
-#ifndef OLD_IMPL
 #define new new((char*)__FILE__, __LINE__)
-#endif
 
 class test
 {
