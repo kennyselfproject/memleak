@@ -388,6 +388,6 @@ void * operator new[](size_t size, CollHeap* h, NABoolean failureIsFatal,
     { for (C* t=(p)+n-1; t>=p; t--) t->~C(); (h)->deallocateMemory((void*)p); } \
   else delete[] (p); } }
  
-#include "overwritemicro.h"
+#include "NAOverWriteMicro.h"
 
 #endif
