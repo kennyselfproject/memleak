@@ -1,0 +1,58 @@
+/**********************************************************************
+// @@@ START COPYRIGHT @@@
+//
+// Licensed to the Apache Software Foundation (ASF) under one
+// or more contributor license agreements.  See the NOTICE file
+// distributed with this work for additional information
+// regarding copyright ownership.  The ASF licenses this file
+// to you under the Apache License, Version 2.0 (the
+// "License"); you may not use this file except in compliance
+// with the License.  You may obtain a copy of the License at
+//
+//   http://www.apache.org/licenses/LICENSE-2.0
+//
+// Unless required by applicable law or agreed to in writing,
+// software distributed under the License is distributed on an
+// "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY
+// KIND, either express or implied.  See the License for the
+// specific language governing permissions and limitations
+// under the License.
+//
+// @@@ END COPYRIGHT @@@
+**********************************************************************/
+/* -*-C++-*-
+****************************************************************************
+*
+* File:         NABasicObject.h (previously under /common)
+* Description:  This file contains the declaration of NABasicObject, which
+*               has the new/delete defined to use CollHeap* as the memory
+*               allocation.
+*
+* Created:      5/6/98
+* Language:     C++
+*
+*
+*
+****************************************************************************
+*/
+
+#ifndef NAMEMORY_H
+#define NAMEMORY_H
+
+class NAMemory {
+public:
+    NAMemory(const char * name = NULL){(void)name;};
+
+    ~NAMemory(){};
+
+    void * allocateMemory(size_t size, bool failureIsFatal = true)
+    {(void)size; (void)failureIsFatal; return NULL;};
+    void deallocateMemory(void * addr){(void)addr;};
+
+};
+
+typedef bool NABoolean;
+#define NOT_CHECK_NAHEAP(h) (h)
+typedef NAMemory CollHeap ;
+
+#endif // NAMEMORY_H

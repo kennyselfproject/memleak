@@ -30,6 +30,4 @@ extern void operator delete[](void *ptr);
 
 extern void operator delete[](void *ptr, char* file, int line);
 
-#define new new((char*)__FILE__, __LINE__)
-
 #endif // OVERWRITEMEM_H

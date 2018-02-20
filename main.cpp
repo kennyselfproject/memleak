@@ -1,5 +1,5 @@
 using namespace std;
-#include "overwritemem.h"
+#include "NABasicObject.h"
 
 class test
 {
@@ -13,9 +13,9 @@ private:
 
 void test_delete_first()
 {
-    int * ptr1 = new int(2);
-    int * ptr2 = new int[10];
-    test * ptr3 = new test(0);
+    int * ptr1 = new(NULL) int(2);
+    int * ptr2 = new(NULL) int[10];
+    test * ptr3 = new(NULL) test(0);
     /*
       delete ptr; 调用的就是 void operator delete(void * ptr); 而与new 匹配的delete 不是自己调用的
       ，而是在new申请,成功却在构造函数时候出错，new operator自己根据operator new 来寻找 
@@ -87,9 +87,9 @@ void test_delete_all()
 int main()
 {
     test_delete_first();
-    test_delete_median();
-    test_delete_end();
-    test_delete_all();
+// test_delete_median();
+//     test_delete_end();
+//     test_delete_all();
 
     return 0;
 }
