@@ -60,10 +60,24 @@ void *memory_delete(MemHeader_t *pMemHeader, void *ptr)
     MemList_t *pMemList = (MemList_t*)ptr - 1;
 
     // Delete MemList from MemList list
-    
-    pMemList->prev->next = pMemList->next;
+    switch(pMemList->filetype) 
+    {
+    case 'H':
+    case 'h':
+        cout << "WARNING: header file call a new operator!!!!!" << endl;
+    case 'C':
+    case 'c':
+        break;
+
+    default:
+        return ptr;
+    }
+
+    if (pMemList->prev != NULL)
+        pMemList->prev->next = pMemList->next;
     if (pMemList->next != NULL)
         pMemList->next->prev = pMemList->prev;
+    
     pMemHeader->total -= pMemList->size;
     pMemHeader->lstLen--;
     

@@ -13,12 +13,14 @@ using namespace std;
 /*
   首先自己定义operator new函数，来替代编译器全局默认的operator函数
 */
+extern void * operator new(size_t size);
 extern void * operator new(size_t size, char* file, int line);
 extern void * operator new(size_t size, const std::nothrow_t& e, char* file, int line);
 
 /*
   首先自己定义operator new函数，来替代编译器全局默认的operator函数
 */
+extern void * operator new[](size_t size);
 extern void * operator new[](size_t size, char* file, int line);
 extern void * operator new[](size_t size, const std::nothrow_t& e, char* file, int line);
 

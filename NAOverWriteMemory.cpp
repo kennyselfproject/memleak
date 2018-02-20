@@ -12,6 +12,11 @@ bool gEnableMemoryDiag = true;
 /*
   首先自己定义operator new函数，来替代编译器全局默认的operator函数
 */
+void * operator new(size_t size)
+{
+    return malloc(size);
+}
+
 void * operator new(size_t size, char* file, int line)
 {
     if (gEnableMemoryDiag)
@@ -48,6 +53,10 @@ void * operator new(size_t size, const std::nothrow_t& e, char* file, int line)
     {
         return (::new(e) char[size]);
     }
+}
+void * operator new[](size_t size)
+{
+    return malloc(size);
 }
 
 /*
@@ -101,7 +110,7 @@ void operator delete(void *ptr){
     cout <<"Global override delete: "<< ptr << endl;
     free(ptr);
     ptr = NULL;
-}
+    }
 
 void operator delete(void *ptr, char* file, int line){
     cout<<"Global override delete ("<<ptr<<","<<file<<","<<line<<")"<<endl;

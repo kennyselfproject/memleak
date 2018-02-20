@@ -54,5 +54,6 @@ public:
 typedef bool NABoolean;
 #define NOT_CHECK_NAHEAP(h) (h)
 typedef NAMemory CollHeap ;
+#define NULLHEAP ((CollHeap*)0)
 
 #endif // NAMEMORY_H

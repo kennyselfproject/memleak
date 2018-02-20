@@ -13,9 +13,9 @@ private:
 
 void test_delete_first()
 {
-    int * ptr1 = new(NULL) int(2);
-    int * ptr2 = new(NULL) int[10];
-    test * ptr3 = new(NULL) test(0);
+    int * ptr1 = new (NULL) int(2);
+    int * ptr2 = new (NULL) int[10];
+    test * ptr3 = new (NULL) test(0);
     /*
       delete ptr; 调用的就是 void operator delete(void * ptr); 而与new 匹配的delete 不是自己调用的
       ，而是在new申请,成功却在构造函数时候出错，new operator自己根据operator new 来寻找 
@@ -25,7 +25,7 @@ void test_delete_first()
     cout<<"**********case test_delete_first***********"<<endl;
 
     memory_scan(&gGlobalMemory);
-    delete ptr2;
+    delete [] ptr2;
     delete ptr3;
 }
 
@@ -62,7 +62,7 @@ void test_delete_end()
 
     memory_scan(&gGlobalMemory);    
     delete ptr1;
-    delete ptr2;
+    delete [] ptr2;
 }
 
 void test_delete_all()
@@ -76,7 +76,7 @@ void test_delete_all()
       对应的operator delete 来调用，稍后介绍。
     */
     delete ptr1;
-    delete ptr2;
+    delete [] ptr2;
     delete ptr3;
     cout<<"**********case test_delete_all***********"<<endl;
 
@@ -91,6 +91,15 @@ void test_delete_nothrow()
     delete ptr1;
 }
 
+void test_delete_new()
+{
+    int * ptr1 = new int(2);
+    int * ptr2 = new int[10];
+
+    memory_scan(&gGlobalMemory);
+    delete ptr1;
+    delete [] ptr2;
+}
 
 int main()
 {
@@ -99,6 +108,7 @@ int main()
     test_delete_end();
     test_delete_all();
     test_delete_nothrow();
+    test_delete_new();
 
     return 0;
 }

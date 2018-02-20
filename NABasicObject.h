@@ -45,6 +45,7 @@
 #include <cstdlib>
 
 #include "Platform.h"
+#include "NAMemory.h"
 #include "NAOverWriteMemory.h"
 
 /*
@@ -235,65 +236,6 @@ private:
 
 };
 */
-class NAMemory {
-public:
-  // we distinguish 6 types of memory. The following table explains the
-  // memory types for the different OS environments
-
-  // memory type            NT/UNIX             NSK
-  // -----------------------------------------------------------------------
-  // EXECUTOR_MEMORY        regular memory      selectable segment used in the
-  //                                            master. This is a priv
-  //                                            segment.
-  // SYSTEM_MEMORY          regular memory      flat segments used in MXCMP
-  // IPC_MEMORY             regular memory      flat segments used in ESPs
-  // DERIVED_MEMORY         allocated in one of the other memory types.
-  // DERIVED_FROM_SYS_HEAP  regular memory      regular memory
-
-  // NO_MEMORY_TYPE is used, if we don't know the memory type at creation
-  // time. Before a memory can be used, the type_ has to be set via
-  // setType() or setParent()
-  //
-  enum NAMemoryType {
-    NO_MEMORY_TYPE = 0,
-    EXECUTOR_MEMORY = 2,
-    SYSTEM_MEMORY = 3,
-    DERIVED_MEMORY = 4,
-    DERIVED_FROM_SYS_HEAP = 5,
-    IPC_MEMORY = 6
-  };
-
-  // DerivedClass is necessary due to a characteristic of runtime stats. Because
-  // there are multiple processes that use NAMemory objects in a shared memory
-  // segment, virtual functions cannot be used on NAMemory unless the virtual
-  // table pointer is modified each time a process needs to allocate or
-  // deallocate memory.  This caused problems so it was decided that virtual
-  // functions would no longer be used in the scenario.  The DerivedClass enum
-  // is part of a mechanism that provides a mechanism similar to virtual functions,
-  // but doesn't involve pointers that would be incompatible across different
-  // programs.
-  enum DerivedClass {
-    NAHEAP_CLASS = 0,
-    COMSPACE_CLASS = 1,
-    DEFAULTIPCHEAP_CLASS = 2
-  };
-
-// default constructor. Initializes the memory to NO_MEMORY_TYPE.
-    NAMemory(const char * name = NULL){(void)name;};
-
-    ~NAMemory(){};
-
-  // This method takes and returns the same arguments as an "operator new".
-  // It is used to allocate arrays(!!) of the collected object(type T).
-    void * allocateMemory(size_t size, bool failureIsFatal = true)
-    {(void)size; (void)failureIsFatal; return NULL;};
-
-  // This method takes and returns the same arguments as an "operator delete".
-  // It is used to deallocate the above arrays.
-    void deallocateMemory(void * addr){(void)addr;};
-
-};
-
 typedef NAMemory CollHeap ;
 typedef bool NABoolean;
 // -----------------------------------------------------------------------
@@ -358,10 +300,10 @@ void * operator new[](size_t size, CollHeap* h, NABoolean failureIsFatal,
 
 #define NADELETEBASIC(p,h) \
   (void) (!(p) || \
-  	 ((NOT_CHECK_NAHEAP(h) ? (h)->deallocateMemory((void*)p) : delete p), 0) )
+          ((NOT_CHECK_NAHEAP(h) ? (h)->deallocateMemory((void*)p) : delete p), 0) )
 #define NADELETEBASICARRAY(p,h) \
   (void) (!(p) || \
-        ((NOT_CHECK_NAHEAP(h) ? (h)->deallocateMemory((void*)p) : delete [] p), 0))
+          ((NOT_CHECK_NAHEAP(h) ? (h)->deallocateMemory((void*)p) : delete [] p), 0))
 
 // NADELETE(p,C,h) deletes p from CollHeap h, and calls p's destructor ~C.
 // so the destructor of class C will be called.
@@ -372,7 +314,7 @@ void * operator new[](size_t size, CollHeap* h, NABoolean failureIsFatal,
 #define NADELETE(p,C,h)  \
   (void) (!(p) || \
   	 ((NOT_CHECK_NAHEAP(h) ? ((p)->~C(), (h)->deallocateMemory((void*)p)) : \
-	 	 delete p), 0))
+           delete p), 0))
 
 // NADELETEARRAY(p,n,C,h) deletes p from CollHeap h, p is an array of class C
 // so the destructor of C will be called for each element of p (if not NULL).
