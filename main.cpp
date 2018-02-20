@@ -83,6 +83,14 @@ void test_delete_all()
     memory_scan(&gGlobalMemory);    
 }
 
+void test_delete_nothrow()
+{
+    int * ptr1 = new (nothrow) int(2);
+
+    memory_scan(&gGlobalMemory);
+    delete ptr1;
+}
+
 
 int main()
 {
@@ -90,6 +98,7 @@ int main()
     test_delete_median();
     test_delete_end();
     test_delete_all();
+    test_delete_nothrow();
 
     return 0;
 }
