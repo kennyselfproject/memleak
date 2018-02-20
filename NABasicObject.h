@@ -45,7 +45,7 @@
 #include <cstdlib>
 
 #include "Platform.h"
-#include "overwritemem.h"
+#include "NAOverWriteMemory.h"
 
 /*
 #include "NAStdlib.h"

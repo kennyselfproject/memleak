@@ -45,7 +45,7 @@
 using namespace std;
 #include <stdlib.h>
 #include "NAMemory.h"
-#include "overwritemem.h"
+#include "NAOverWriteMemory.h"
 
 /*
 #include "ComASSERT.h"

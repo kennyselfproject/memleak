@@ -1,5 +1,5 @@
 using namespace std;
-#include "memleakdiag.h"
+#include "NAMemoryDiag.h"
 
 MemHeader_t gGlobalMemory = {NULL, NULL, 0, 0};
 

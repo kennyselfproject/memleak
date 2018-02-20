@@ -5,7 +5,7 @@
 
 using namespace std;
 #include <malloc.h>
-#include "memleakdiag.h"
+#include "NAMemoryDiag.h"
 
 bool gEnableMemoryDiag = true;
 

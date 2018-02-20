@@ -1,5 +1,5 @@
-#ifndef MEMLEAKDIAG_H
-#define MEMLEAKDIAG_H
+#ifndef NAMEMORYDIAG_H
+#define NAMEMORYDIAG_H
 
 #include <iostream>
 #include <new>
@@ -48,4 +48,4 @@ extern void
 memory_scan(MemHeader_t *pMemHeader);
 
 
-#endif // MEMLEAKDIAG_H
+#endif // NAMEMORYDIAG_H
