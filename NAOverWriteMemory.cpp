@@ -5,7 +5,7 @@
 
 using namespace std;
 #include <malloc.h>
-#include "NAMemoryDiag.h"
+#include "NAOverWriteMemory.h"
 
 bool gEnableMemoryDiag = true;
 
@@ -54,6 +54,40 @@ void * operator new(size_t size, const std::nothrow_t& e, char* file, int line)
         return (::new(e) char[size]);
     }
 }
+
+void* operator new (size_t t, CollHeap* h, char* file, int line)
+{
+
+  if (NOT_CHECK_NAHEAP(h))
+  {
+    return h->allocateMemory(t);
+  } else {
+
+#ifdef NA_LEAK_DETECTION
+      get_caller_location();
+#endif
+      return (::operator new(t, file, line));
+  }
+
+}
+
+void* operator new (size_t t, CollHeap* h, bool failureIsFatal, 
+                    char* file, int line)
+{
+  if (NOT_CHECK_NAHEAP(h))
+  {
+    return h->allocateMemory(t, failureIsFatal);
+  } else {
+
+#ifdef NA_LEAK_DETECTION
+    get_caller_location();
+#endif
+
+    return (::operator new(t, file, line));
+  }
+
+}
+
 void * operator new[](size_t size)
 {
     return malloc(size);
@@ -103,6 +137,43 @@ void * operator new[](size_t size, const std::nothrow_t& e, char* file, int line
     //下面这句话会引起递归的调用，重载operator new之后，::operator new就等于调用自己
     //return ::operator new(size);
 }
+
+
+void* operator new[] (size_t t, CollHeap* h, char* file, int line)
+{
+  //return ( (h) ? h->allocateMemory(t) : (::new char[t] ) );
+
+  if (NOT_CHECK_NAHEAP(h))
+  {
+    return h->allocateMemory(t);
+  } else {
+
+#ifdef NA_LEAK_DETECTION
+    get_caller_location();
+#endif
+
+    return (::operator new(t, file, line));
+  }
+
+}
+
+void* operator new[] (size_t t, CollHeap* h, bool failureIsFatal, 
+                      char* file, int line)
+{
+  if (NOT_CHECK_NAHEAP(h))
+  {
+    return h->allocateMemory(t, failureIsFatal);
+  } else {
+
+#ifdef NA_LEAK_DETECTION
+    get_caller_location();
+#endif
+
+    return (::operator new(t, file, line));
+  }
+
+}
+
 
 //覆盖掉全局的operator delete 函数
 void operator delete(void *ptr){

@@ -103,6 +103,4 @@ void memory_scan(MemHeader_t *pMemHeader)
              << " prev:" << pCur->prev 
              << " next:" << pCur->next << endl;
     }
-
-    cout << endl;
 }
